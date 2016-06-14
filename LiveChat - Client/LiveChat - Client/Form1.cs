@@ -16,5 +16,20 @@ namespace LiveChat___Client
         {
             InitializeComponent();
         }
+
+        private void buttonConnect_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void buttonSend_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void buttonDisconnect_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }
