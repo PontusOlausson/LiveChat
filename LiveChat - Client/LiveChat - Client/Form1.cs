@@ -16,7 +16,7 @@ namespace LiveChat___Client
     public partial class Form1 : Form
     {
 
-        TcpClient clientSocket = new TcpClient();
+        TcpClient clientSocket;
         NetworkStream serverStream = default(NetworkStream);
         string readData = null;
 
@@ -35,8 +35,11 @@ namespace LiveChat___Client
 
             if (Connect())
             {
-                readData = "Connection successful, now chatting.";
-                WriteMessage();
+                if (IsConnected())
+                {
+                    readData = "Connection successful, now chatting.";
+                    WriteMessage();           
+                }
             }
             else
             {
@@ -52,31 +55,53 @@ namespace LiveChat___Client
 
         private void buttonDisconnect_Click(object sender, EventArgs e)
         {
-
+            Disconnect();
         }
 
 
         private void SendMessage(string message)
         {
-            byte[] outStream = System.Text.Encoding.ASCII.GetBytes(message + "$");
-            serverStream.Write(outStream, 0, outStream.Length);
-            serverStream.Flush();
+            if (IsConnected())
+            {
+                byte[] outStream = System.Text.Encoding.ASCII.GetBytes(message + "$");
+                serverStream.Write(outStream, 0, outStream.Length);
+                serverStream.Flush();
+            }
         }
 
         private void GetMessage()
         {
-            while (true)
+            while (IsConnected())
             {
-                serverStream = clientSocket.GetStream();
-                int buffSize = 0;
-                byte[] inStream = new byte[10025];
-                buffSize = clientSocket.ReceiveBufferSize;
-                //serverStream.Read(inStream, 0, buffSize);
-                serverStream.Read(inStream, 0, inStream.Length);
-                string returndata = System.Text.Encoding.ASCII.GetString(inStream);
-                readData = "" + returndata;
-                WriteMessage();
+                try
+                {
+                    serverStream = clientSocket.GetStream();
+                    int buffSize = 0;
+                    byte[] inStream = new byte[clientSocket.ReceiveBufferSize];
+                    buffSize = clientSocket.ReceiveBufferSize;
+                    serverStream.Read(inStream, 0, buffSize);
+                    string returndata = System.Text.Encoding.ASCII.GetString(inStream);
+                    readData = "" + returndata;
+                    WriteMessage();
+                }
+                catch (Exception ex)
+                {
+                    readData = ex.ToString();
+                    WriteMessage();
+                    break;
+                }
+
             }
+
+            Disconnect();
+        }
+
+        private void Disconnect()
+        {
+            clientSocket.Close();
+
+            readData = "Disconnected from server";
+            WriteMessage();
         }
 
         private void WriteMessage()
@@ -95,6 +120,7 @@ namespace LiveChat___Client
                 ip = textBoxIP.Text;
                 port = int.Parse(textBoxPort.Text);
 
+                clientSocket = new TcpClient();
                 clientSocket.Connect(ip, port);
                 serverStream = clientSocket.GetStream();
 
@@ -105,6 +131,40 @@ namespace LiveChat___Client
                 Thread ctThread = new Thread(GetMessage);
                 ctThread.Start();
                 return true;
+            }
+            catch (Exception ex)
+            {
+                readData = ex.ToString();
+                WriteMessage();
+                return false;
+            }
+        }
+
+        private bool IsConnected()
+        {
+            try
+            {
+                if (clientSocket != null && clientSocket.Client != null && clientSocket.Client.Connected)
+                {
+                    if (clientSocket.Client.Poll(0, SelectMode.SelectRead))
+                    {
+                        byte[] buff = new byte[1];
+                        if (clientSocket.Client.Receive(buff, SocketFlags.Peek) == 0)
+                        {
+                            return false;
+                        }
+                        else
+                        {
+                            return true;
+                        }
+
+                    }
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
             }
             catch
             {
