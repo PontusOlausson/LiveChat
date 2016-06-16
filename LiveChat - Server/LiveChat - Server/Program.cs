@@ -18,16 +18,19 @@ namespace LiveChat___Server
         {
             IPAddress ip = IPAddress.Any;
             int port = 8888;
-            TcpListener serverSocket = new TcpListener(ip, port);
+            TcpListener serverSocket = new TcpListener(IPAddress.Any, port);
             TcpClient clientSocket = default(TcpClient);
+            int counter = 0;
 
             serverSocket.Start();
-            Console.WriteLine("Chat Server Started .... test");
+            Console.WriteLine("Chat Server Started ....");
             Console.WriteLine("IP address: " + ip);
             Console.WriteLine("Port: " + port);
 
+            counter = 0;
             while (true)
             {
+                counter++;
                 clientSocket = serverSocket.AcceptTcpClient();
 
                 byte[] bytesFrom = new byte[clientSocket.ReceiveBufferSize];
@@ -35,13 +38,14 @@ namespace LiveChat___Server
 
                 NetworkStream networkStream = clientSocket.GetStream();
                 networkStream.Read(bytesFrom, 0, clientSocket.ReceiveBufferSize);
-                //networkStream.Read(bytesFrom, 0, bytesFrom.Length);
                 dataFromClient = System.Text.Encoding.ASCII.GetString(bytesFrom);
                 dataFromClient = dataFromClient.Substring(0, dataFromClient.IndexOf("$"));
 
                 if (clientsList.ContainsKey(dataFromClient))
                 {
-                    Whisper("Nickname: " + dataFromClient + " was already taken, please try another.", clientSocket);
+                    Whisper("Nickname '" + dataFromClient + "' was already taken, please try another.", clientSocket);
+                    clientSocket.Client.Shutdown(SocketShutdown.Both);
+                    clientSocket.Close();
                 }
                 else
                 {
@@ -111,7 +115,7 @@ namespace LiveChat___Server
         private void doChat()
         {
             int requestCount = 0;
-            byte[] bytesFrom = new byte[10025];
+            byte[] bytesFrom = new byte[clientSocket.ReceiveBufferSize];
             string dataFromClient = null;
             Byte[] sendBytes = null;
             string serverResponse = null;
@@ -124,8 +128,7 @@ namespace LiveChat___Server
                 {
                     requestCount = requestCount + 1;
                     NetworkStream networkStream = clientSocket.GetStream();
-                    //networkStream.Read(bytesFrom, 0, (int)clientSocket.ReceiveBufferSize);
-                    networkStream.Read(bytesFrom, 0, 10025);
+                    networkStream.Read(bytesFrom, 0, clientSocket.ReceiveBufferSize);
 
                     dataFromClient = System.Text.Encoding.ASCII.GetString(bytesFrom);
                     dataFromClient = dataFromClient.Substring(0, dataFromClient.IndexOf("$"));
@@ -137,6 +140,10 @@ namespace LiveChat___Server
                 catch (Exception ex)
                 {
                     Console.WriteLine(ex.ToString());
+                    Console.WriteLine("Client : " + clNo + " disconnected.");
+
+                    Program.clientsList.Remove(clNo);
+                    break;
                 }
             }
         }
