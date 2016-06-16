@@ -22,7 +22,7 @@ namespace LiveChat___Server
             TcpClient clientSocket = default(TcpClient);
 
             serverSocket.Start();
-            Console.WriteLine("Chat Server Started ....");
+            Console.WriteLine("Chat Server Started .... test");
             Console.WriteLine("IP address: " + ip);
             Console.WriteLine("Port: " + port);
 
@@ -30,28 +30,43 @@ namespace LiveChat___Server
             {
                 clientSocket = serverSocket.AcceptTcpClient();
 
-                byte[] bytesFrom = new byte[10025];
+                byte[] bytesFrom = new byte[clientSocket.ReceiveBufferSize];
                 string dataFromClient = null;
 
                 NetworkStream networkStream = clientSocket.GetStream();
-                //networkStream.Read(bytesFrom, 0, (int)clientSocket.ReceiveBufferSize);
-                networkStream.Read(bytesFrom, 0, bytesFrom.Length);
+                networkStream.Read(bytesFrom, 0, clientSocket.ReceiveBufferSize);
+                //networkStream.Read(bytesFrom, 0, bytesFrom.Length);
                 dataFromClient = System.Text.Encoding.ASCII.GetString(bytesFrom);
                 dataFromClient = dataFromClient.Substring(0, dataFromClient.IndexOf("$"));
 
-                clientsList.Add(dataFromClient, clientSocket);
-
-                Broadcast(dataFromClient + " Joined ", dataFromClient, false);
-
-                Console.WriteLine(dataFromClient + " Joined chat room ");
-                HandleClient client = new HandleClient();
-                client.StartClient(clientSocket, dataFromClient, clientsList);
+                if (clientsList.ContainsKey(dataFromClient))
+                {
+                    Whisper("Nickname: " + dataFromClient + " was already taken, please try another.", clientSocket);
+                }
+                else
+                {
+                    clientsList.Add(dataFromClient, clientSocket);
+                    Broadcast(dataFromClient + " Joined ", dataFromClient, false);
+                    Console.WriteLine(dataFromClient + " Joined chat room ");
+                    HandleClient client = new HandleClient();
+                    client.StartClient(clientSocket, dataFromClient, clientsList);
+                }
             }
 
             clientSocket.Close();
             serverSocket.Stop();
             Console.WriteLine("exit");
             Console.ReadLine();
+        }
+
+        public static void Whisper(string message, TcpClient client)
+        {
+            TcpClient socket = client;
+            NetworkStream whisperStream = socket.GetStream();
+            Byte[] whisperBytes = Encoding.ASCII.GetBytes(message);
+
+            whisperStream.Write(whisperBytes, 0, whisperBytes.Length);
+            whisperStream.Flush();
         }
 
         public static void Broadcast(string message, string uName, bool flag)
