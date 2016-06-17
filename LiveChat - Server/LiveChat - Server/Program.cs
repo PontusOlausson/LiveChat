@@ -7,6 +7,7 @@ using System.Collections;
 using System.Net.Sockets;
 using System.Threading;
 using System.Net;
+using System.Reflection;
 
 namespace LiveChat___Server
 {
@@ -27,6 +28,9 @@ namespace LiveChat___Server
             Console.WriteLine("IP address: " + ip);
             Console.WriteLine("Port: " + port);
 
+            Thread ctThread = new Thread(ListenForInput);
+            ctThread.Start();
+
             counter = 0;
             while (true)
             {
@@ -41,14 +45,15 @@ namespace LiveChat___Server
                 dataFromClient = System.Text.Encoding.ASCII.GetString(bytesFrom);
                 dataFromClient = dataFromClient.Substring(0, dataFromClient.IndexOf("$"));
 
-                if (clientsList.ContainsKey(dataFromClient))
+                if (clientsList.ContainsKey(dataFromClient) || dataFromClient == "FailTest")
                 {
-                    Whisper("Nickname '" + dataFromClient + "' was already taken, please try another.", clientSocket);
+                    Whisper("Denied; Nickname '" + dataFromClient + "' was already taken, please try another.", clientSocket);
                     clientSocket.Client.Shutdown(SocketShutdown.Both);
                     clientSocket.Close();
                 }
                 else
                 {
+                    Whisper("Connection accepted.", clientSocket);
                     clientsList.Add(dataFromClient, clientSocket);
                     Broadcast(dataFromClient + " Joined ", dataFromClient, false);
                     Console.WriteLine(dataFromClient + " Joined chat room ");
@@ -63,6 +68,76 @@ namespace LiveChat___Server
             Console.ReadLine();
         }
 
+        public static void ListenForInput()
+        {
+            while (true)
+            {
+                string input = Console.ReadLine();
+
+                //TODO: allow quotes.
+
+                string[] args = input.Split( new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+                object[] parameters = new object[args.Length - 1];
+                for (int i = 1; i < args.Length; i++)
+                {
+                    int u;
+                    bool b;
+                    if (int.TryParse(args[i], out u))
+                    {
+                        parameters[i - 1] = u;
+                    }
+                    else if (bool.TryParse(args[i], out b))
+                    {
+                        parameters[i - 1] = b;
+                    }
+                    else
+                    {
+                        parameters[i - 1] = args[i];
+                    }
+                }
+
+                try
+                {
+                    Type[] parameterTypes = (from p in parameters select p.GetType()).ToArray();
+                    MethodInfo mi = typeof(Program).GetMethod(args[0].Substring(1), parameterTypes);
+
+                    if (mi != null)
+                    {
+                        mi.Invoke(null, parameters);
+                    }
+                    else
+                    {
+                        Console.WriteLine("No overload method matched the given input.");
+                    }
+
+                }
+                catch
+                {
+                    Console.WriteLine("Unknown command: " + args[0] + ".");
+                }
+            }
+        }
+
+        public static void DisconnectUser(string key, string reason, bool flag)
+        {
+            try
+            {
+                TcpClient client = (TcpClient)clientsList[key];
+                Console.WriteLine(client != null);
+
+                if (flag)
+                    Whisper("Kicked from server. Reason: " + reason, client);
+
+                client.Close();
+                clientsList.Remove(key);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+        }
+
         public static void Whisper(string message, TcpClient client)
         {
             TcpClient socket = client;
@@ -73,26 +148,39 @@ namespace LiveChat___Server
             whisperStream.Flush();
         }
 
+        public static void Broadcast(string message)
+        {
+            Broadcast(message, "Server");
+        }
+
+        public static void Broadcast(string message, string uName)
+        {
+            Broadcast(message, uName, true);
+        }
+
         public static void Broadcast(string message, string uName, bool flag)
         {
-            foreach (DictionaryEntry Item in clientsList)
+            if (clientsList.Count > 0)
             {
-                TcpClient broadcastSocket;
-                broadcastSocket = (TcpClient)Item.Value;
-                NetworkStream broadcastStream = broadcastSocket.GetStream();
-                Byte[] broadcastBytes = null;
-
-                if (flag == true)
+                foreach (DictionaryEntry Item in clientsList)
                 {
-                    broadcastBytes = Encoding.ASCII.GetBytes(uName + " says : " + message);
-                }
-                else
-                {
-                    broadcastBytes = Encoding.ASCII.GetBytes(message);
-                }
+                    TcpClient broadcastSocket;
+                    broadcastSocket = (TcpClient)Item.Value;
+                    NetworkStream broadcastStream = broadcastSocket.GetStream();
+                    Byte[] broadcastBytes = null;
 
-                broadcastStream.Write(broadcastBytes, 0, broadcastBytes.Length);
-                broadcastStream.Flush();
+                    if (flag == true)
+                    {
+                        broadcastBytes = Encoding.ASCII.GetBytes(uName + " says : " + message);
+                    }
+                    else
+                    {
+                        broadcastBytes = Encoding.ASCII.GetBytes(message);
+                    }
+
+                    broadcastStream.Write(broadcastBytes, 0, broadcastBytes.Length);
+                    broadcastStream.Flush();
+                }
             }
         }
     }
@@ -108,11 +196,11 @@ namespace LiveChat___Server
             this.clientSocket = inClientSocket;
             this.clNo = clineNo;
             this.clientsList = cList;
-            Thread ctThread = new Thread(doChat);
+            Thread ctThread = new Thread(DoChat);
             ctThread.Start();
         }
 
-        private void doChat()
+        private void DoChat()
         {
             int requestCount = 0;
             byte[] bytesFrom = new byte[clientSocket.ReceiveBufferSize];
@@ -122,7 +210,7 @@ namespace LiveChat___Server
             string rCount = null;
             requestCount = 0;
 
-            while ((true))
+            while (true)
             {
                 try
                 {
@@ -135,14 +223,15 @@ namespace LiveChat___Server
                     Console.WriteLine("From client - " + clNo + " : " + dataFromClient);
                     rCount = Convert.ToString(requestCount);
 
-                    Program.Broadcast(dataFromClient, clNo, true);
+                    Program.Broadcast(dataFromClient, clNo);
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.ToString());
+                    //Console.WriteLine(ex.ToString());
                     Console.WriteLine("Client : " + clNo + " disconnected.");
 
                     Program.clientsList.Remove(clNo);
+                    Program.Broadcast(clNo + " disconnected.", clNo, false);
                     break;
                 }
             }

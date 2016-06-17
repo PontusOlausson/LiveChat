@@ -20,12 +20,16 @@ namespace LiveChat___Client
         NetworkStream serverStream = default(NetworkStream);
         string readData = null;
 
-        string nickname, ip;
-        int port;
+        string nickname;
 
         public Form1()
         {
             InitializeComponent();
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            textBoxMessage.Focus();
         }
 
         private void buttonConnect_Click(object sender, EventArgs e)
@@ -33,13 +37,10 @@ namespace LiveChat___Client
             readData = "Trying to connect...";
             WriteMessage();
 
-            if (Connect())
+            if (Connect(textBoxIP.Text, int.Parse(textBoxPort.Text)))
             {
-                if (IsConnected())
-                {
-                    readData = "Connection successful, now chatting.";
-                    WriteMessage();           
-                }
+                readData = "Connection successful, now chatting.";
+                WriteMessage();           
             }
             else
             {
@@ -50,12 +51,17 @@ namespace LiveChat___Client
 
         private void buttonSend_Click(object sender, EventArgs e)
         {
-            SendMessage(textBoxMessage.Text);
+            if (IsConnected())
+            {
+                SendMessage(textBoxMessage.Text);
+                textBoxMessage.Text = "";
+            }
         }
 
         private void buttonDisconnect_Click(object sender, EventArgs e)
         {
-            Disconnect();
+            if (IsConnected())
+                Disconnect();
         }
 
 
@@ -76,21 +82,18 @@ namespace LiveChat___Client
                 try
                 {
                     serverStream = clientSocket.GetStream();
-                    int buffSize = 0;
                     byte[] inStream = new byte[clientSocket.ReceiveBufferSize];
-                    buffSize = clientSocket.ReceiveBufferSize;
-                    serverStream.Read(inStream, 0, buffSize);
+                    serverStream.Read(inStream, 0, inStream.Length);
                     string returndata = System.Text.Encoding.ASCII.GetString(inStream);
-                    readData = "" + returndata;
+                    readData = returndata;
                     WriteMessage();
                 }
                 catch (Exception ex)
                 {
-                    readData = ex.ToString();
-                    WriteMessage();
+                    //readData = ex.ToString();
+                    //WriteMessage();
                     break;
                 }
-
             }
 
             Disconnect();
@@ -98,9 +101,10 @@ namespace LiveChat___Client
 
         private void Disconnect()
         {
+            serverStream.Close();
             clientSocket.Close();
 
-            readData = "Disconnected from server";
+            readData = "Disconnected from server.";
             WriteMessage();
         }
 
@@ -112,13 +116,11 @@ namespace LiveChat___Client
                 textBoxChat.Text += Environment.NewLine + " >> " + readData;
         }
 
-        private bool Connect()
+        private bool Connect(string ip, int port)
         {
             try
             {
                 nickname = textBoxNick.Text;
-                ip = textBoxIP.Text;
-                port = int.Parse(textBoxPort.Text);
 
                 clientSocket = new TcpClient();
                 clientSocket.Connect(ip, port);
@@ -127,6 +129,19 @@ namespace LiveChat___Client
                 byte[] outStream = System.Text.Encoding.ASCII.GetBytes(textBoxNick.Text + "$");
                 serverStream.Write(outStream, 0, outStream.Length);
                 serverStream.Flush();
+
+                //if connection was denied by server.
+                byte[] inStream = new byte[clientSocket.ReceiveBufferSize];
+                serverStream.Read(inStream, 0, inStream.Length);
+                string s = Encoding.ASCII.GetString(inStream);
+
+                readData = s;
+                WriteMessage();
+
+                if (s.Substring(0, 7) == "Denied;")
+                {
+                    return false;
+                }
 
                 Thread ctThread = new Thread(GetMessage);
                 ctThread.Start();

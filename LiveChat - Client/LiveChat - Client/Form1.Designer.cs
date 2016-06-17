@@ -112,6 +112,7 @@
             // 
             // Form1
             // 
+            this.AcceptButton = this.buttonSend;
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(852, 499);
@@ -124,7 +125,8 @@
             this.Controls.Add(this.textBoxMessage);
             this.Controls.Add(this.textBoxChat);
             this.Name = "Form1";
-            this.Text = "Form1";
+            this.Text = "LiveChat - Client";
+            this.Load += new System.EventHandler(this.Form1_Load);
             this.ResumeLayout(false);
             this.PerformLayout();
 
