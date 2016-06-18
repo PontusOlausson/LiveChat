@@ -8,6 +8,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Net;
 using System.Reflection;
+using System.Text.RegularExpressions;
 
 namespace LiveChat___Server
 {
@@ -74,47 +75,55 @@ namespace LiveChat___Server
             {
                 string input = Console.ReadLine();
 
-                //TODO: allow quotes.
-
-                string[] args = input.Split( new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
-                object[] parameters = new object[args.Length - 1];
-                for (int i = 1; i < args.Length; i++)
+                if (input.Substring(0, 1) != "/")
                 {
-                    int u;
-                    bool b;
-                    if (int.TryParse(args[i], out u))
-                    {
-                        parameters[i - 1] = u;
-                    }
-                    else if (bool.TryParse(args[i], out b))
-                    {
-                        parameters[i - 1] = b;
-                    }
-                    else
-                    {
-                        parameters[i - 1] = args[i];
-                    }
+                    Console.WriteLine("Unvalid command");
                 }
-
-                try
+                else
                 {
-                    Type[] parameterTypes = (from p in parameters select p.GetType()).ToArray();
-                    MethodInfo mi = typeof(Program).GetMethod(args[0].Substring(1), parameterTypes);
+                    input = input.Substring(1);
 
-                    if (mi != null)
+                    //Regex splits string at spaces unless in quotes.
+                    string[] args = Regex.Matches(input, @"(?<match>\w+)|\""(?<match>[\w\s]*)""").Cast<Match>().Select(m => m.Groups["match"].Value).ToArray();
+
+                    object[] parameters = new object[args.Length - 1];
+                    for (int i = 1; i < args.Length; i++)
                     {
-                        mi.Invoke(null, parameters);
-                    }
-                    else
-                    {
-                        Console.WriteLine("No overload method matched the given input.");
+                        int u;
+                        bool b;
+                        if (int.TryParse(args[i], out u))
+                        {
+                            parameters[i - 1] = u;
+                        }
+                        else if (bool.TryParse(args[i], out b))
+                        {
+                            parameters[i - 1] = b;
+                        }
+                        else
+                        {
+                            parameters[i - 1] = args[i];
+                        }
                     }
 
-                }
-                catch
-                {
-                    Console.WriteLine("Unknown command: " + args[0] + ".");
+                    try
+                    {
+                        Type[] parameterTypes = (from p in parameters select p.GetType()).ToArray();
+                        MethodInfo mi = typeof(Program).GetMethod(args[0], parameterTypes);
+
+                        if (mi != null)
+                        {
+                            mi.Invoke(null, parameters);
+                        }
+                        else
+                        {
+                            Console.WriteLine("No overload method matched the given input.");
+                        }
+
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e.ToString());
+                    }
                 }
             }
         }
@@ -124,7 +133,6 @@ namespace LiveChat___Server
             try
             {
                 TcpClient client = (TcpClient)clientsList[key];
-                Console.WriteLine(client != null);
 
                 if (flag)
                     Whisper("Kicked from server. Reason: " + reason, client);
@@ -132,9 +140,9 @@ namespace LiveChat___Server
                 client.Close();
                 clientsList.Remove(key);
             }
-            catch (Exception e)
+            catch
             {
-                Console.WriteLine(e.ToString());
+                Console.WriteLine("No client with nickname '" + key + "' connected.");
             }
         }
 
