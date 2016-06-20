@@ -46,7 +46,7 @@ namespace LiveChat___Server
 
                 NetworkStream networkStream = clientSocket.GetStream();
                 networkStream.Read(bytesFrom, 0, clientSocket.ReceiveBufferSize);
-                dataFromClient = System.Text.Encoding.ASCII.GetString(bytesFrom);
+                dataFromClient = System.Text.Encoding.UTF8.GetString(bytesFrom);
                 dataFromClient = dataFromClient.Substring(0, dataFromClient.IndexOf("$"));
 
                 if (clientsList.ContainsKey(dataFromClient) || dataFromClient == "FailTest")
@@ -153,7 +153,7 @@ namespace LiveChat___Server
         {
             TcpClient socket = client;
             NetworkStream whisperStream = socket.GetStream();
-            Byte[] whisperBytes = Encoding.ASCII.GetBytes(message);
+            Byte[] whisperBytes = Encoding.UTF8.GetBytes(message);
 
             whisperStream.Write(whisperBytes, 0, whisperBytes.Length);
             whisperStream.Flush();
@@ -182,11 +182,11 @@ namespace LiveChat___Server
 
                     if (flag == true)
                     {
-                        broadcastBytes = Encoding.ASCII.GetBytes(uName + " says : " + message);
+                        broadcastBytes = Encoding.UTF8.GetBytes(uName + " says : " + message);
                     }
                     else
                     {
-                        broadcastBytes = Encoding.ASCII.GetBytes(message);
+                        broadcastBytes = Encoding.UTF8.GetBytes(message);
                     }
 
                     broadcastStream.Write(broadcastBytes, 0, broadcastBytes.Length);
@@ -229,7 +229,7 @@ namespace LiveChat___Server
                     NetworkStream networkStream = clientSocket.GetStream();
                     networkStream.Read(bytesFrom, 0, clientSocket.ReceiveBufferSize);
 
-                    dataFromClient = System.Text.Encoding.ASCII.GetString(bytesFrom);
+                    dataFromClient = System.Text.Encoding.UTF8.GetString(bytesFrom);
                     dataFromClient = dataFromClient.Substring(0, dataFromClient.IndexOf("$"));
                     Console.WriteLine("From client - " + clNo + " : " + dataFromClient);
                     rCount = Convert.ToString(requestCount);

@@ -69,7 +69,7 @@ namespace LiveChat___Client
         {
             if (IsConnected())
             {
-                byte[] outStream = System.Text.Encoding.ASCII.GetBytes(message + "$");
+                byte[] outStream = System.Text.Encoding.UTF8.GetBytes(message + "$");
                 serverStream.Write(outStream, 0, outStream.Length);
                 serverStream.Flush();
             }
@@ -84,7 +84,7 @@ namespace LiveChat___Client
                     serverStream = clientSocket.GetStream();
                     byte[] inStream = new byte[clientSocket.ReceiveBufferSize];
                     serverStream.Read(inStream, 0, inStream.Length);
-                    string returndata = System.Text.Encoding.ASCII.GetString(inStream);
+                    string returndata = System.Text.Encoding.UTF8.GetString(inStream);
                     readData = returndata;
                     WriteMessage();
                 }
