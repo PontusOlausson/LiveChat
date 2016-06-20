@@ -19,15 +19,18 @@ namespace LiveChat___Server
         static void Main(string[] args)
         {
             IPAddress ip = IPAddress.Any;
-            int port = 8888;
-            TcpListener serverSocket = new TcpListener(IPAddress.Any, port);
+
+            Console.WriteLine("Enter port:");
+            int port = int.Parse(Console.ReadLine());
+
+            TcpListener serverSocket = new TcpListener(ip, port);
             TcpClient clientSocket = default(TcpClient);
             int counter = 0;
 
             serverSocket.Start();
             Console.WriteLine("Chat Server Started ....");
-            Console.WriteLine("IP address: " + ip);
-            Console.WriteLine("Port: " + port);
+            Console.WriteLine("IP address: " + IPAddress.Parse(((IPEndPoint)serverSocket.LocalEndpoint).Address.ToString()));
+            Console.WriteLine("Port: " + ((IPEndPoint)serverSocket.LocalEndpoint).Port.ToString());
 
             Thread ctThread = new Thread(ListenForInput);
             ctThread.Start();
